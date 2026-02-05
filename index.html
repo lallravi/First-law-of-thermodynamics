@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thermodynamics Simulation</title>
+    <title>Thermodynamics Sim by Lall Ravi</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -16,7 +16,7 @@
             background-color: #ffffff; 
             border-bottom: 4px solid #334155; 
             box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
-            display: block; /* Removes bottom spacing issues */
+            display: block; 
         }
         
         /* Flame Animation */
@@ -54,8 +54,11 @@
         <!-- Header -->
         <div class="bg-slate-900 text-white p-6 flex flex-col md:flex-row justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-red-400 flex items-center gap-2">
-                    <i data-lucide="flame"></i> First Law of Thermodynamics
+                <!-- Name added here -->
+                <div class="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-1">Sim by Lall Ravi</div>
+                
+                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i data-lucide="flame" class="text-red-500"></i> First Law of Thermodynamics
                 </h1>
                 <p class="text-slate-400 text-sm mt-1">Energy Conservation: Heat (Q) = Internal Energy (&Delta;U) + Work (W)</p>
             </div>
@@ -97,7 +100,6 @@
                         <span>Cool System</span>
                         <span class="text-red-500">Add Heat (Q)</span>
                     </label>
-                    <!-- Default value set to 150 so it moves on load -->
                     <input type="range" id="heatSlider" min="0" max="500" value="150" step="1">
                     <p class="text-xs text-center text-slate-500 mt-2 italic">Drag slider to heat the gas</p>
                 </div>
@@ -196,10 +198,9 @@
     </div>
 
     <script>
-        // Wait for DOM to fully load before running script to prevent errors
         document.addEventListener('DOMContentLoaded', () => {
             
-            // Initialize Icons if library is loaded
+            // Initialize Icons
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
@@ -222,8 +223,8 @@
 
             // --- State Variables ---
             let particles = [];
-            let currentQ = 0;       // Current Heat
-            let targetQ = 150;      // Target Heat (matches slider default)
+            let currentQ = 0;       
+            let targetQ = 150;      
             let pistonY = BASE_PISTON_Y;
             let currentTemp = BASE_TEMP;
 
@@ -236,20 +237,15 @@
                 reset() {
                     this.radius = 4;
                     this.x = Math.random() * canvas.width;
-                    // Initialize strictly below the piston to avoid sticking
                     this.y = BASE_PISTON_Y + Math.random() * (canvas.height - BASE_PISTON_Y - 10) + 5;
-                    
-                    // Random velocity vector
-                    this.vx = (Math.random() - 0.5) * 3; // Increased base speed
+                    this.vx = (Math.random() - 0.5) * 3; 
                     this.vy = (Math.random() - 0.5) * 3;
                 }
 
                 update(speedMultiplier, ceilingY) {
-                    // Update position
                     this.x += this.vx * speedMultiplier;
                     this.y += this.vy * speedMultiplier;
 
-                    // Wall Collisions (Left/Right)
                     if (this.x <= this.radius) {
                         this.x = this.radius;
                         this.vx *= -1;
@@ -258,18 +254,14 @@
                         this.vx *= -1;
                     }
                     
-                    // Floor Collision
                     if (this.y >= canvas.height - this.radius) {
                         this.y = canvas.height - this.radius;
                         this.vy *= -1;
                     }
 
-                    // Piston (Ceiling) Collision
-                    // If particle hits the piston face
                     if (this.y <= ceilingY + this.radius) {
                         this.y = ceilingY + this.radius;
                         this.vy *= -1;
-                        // Add a tiny bit of random jitter to prevent getting stuck in a perfect loop
                         this.vx += (Math.random() - 0.5) * 0.1;
                     }
                 }
@@ -278,9 +270,7 @@
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                     
-                    // Color Logic: Blue (300K) -> Red (800K)
                     const tempOffset = currentTemp - 300;
-                    // Clamp values to 0-255
                     const r = Math.min(255, Math.max(50, 50 + (tempOffset * 0.5)));
                     const b = Math.max(50, 255 - (tempOffset * 0.5));
                     
@@ -300,10 +290,8 @@
 
             // --- Physics Engine ---
             function updatePhysics() {
-                // Smoothly interpolate current values to slider target
                 targetQ = parseInt(slider.value);
                 
-                // Simple easing for smooth animation
                 const diff = targetQ - currentQ;
                 if (Math.abs(diff) > 0.5) {
                     currentQ += diff * 0.1;
@@ -311,37 +299,27 @@
                     currentQ = targetQ;
                 }
 
-                // Calculate Thermodynamics
                 const deltaU = currentQ * RATIO_U;
                 const work = currentQ * RATIO_W;
 
-                // 1. Temperature affects speed
                 currentTemp = BASE_TEMP + deltaU;
-                // Speed multiplier: v ~ sqrt(T). 
-                // We use a simplified linear factor for better visual effect in this small canvas
                 const speedMultiplier = 1 + (deltaU / 300); 
 
-                // 2. Work affects Volume (Piston Height)
-                // Map Work (0-200J) to Piston Movement (0-200px approx)
                 const pistonMovePixels = work * 0.9; 
                 pistonY = BASE_PISTON_Y - pistonMovePixels;
 
-                // 3. Update Particles
                 particles.forEach(p => p.update(speedMultiplier, pistonY));
 
-                // 4. Update UI Elements
                 updateUI(deltaU, work);
                 updateFlames();
             }
 
             // --- UI Updates ---
             function updateUI(deltaU, work) {
-                // Text Values
                 document.getElementById('valQ').innerText = Math.round(currentQ) + " J";
                 document.getElementById('valU').innerText = Math.round(deltaU) + " J";
                 document.getElementById('valW').innerText = Math.round(work) + " J";
 
-                // Bar Charts
                 const maxQ = MAX_HEAT;
                 const widthU = (Math.abs(deltaU) / (maxQ * RATIO_U)) * 100; 
                 const widthW = (Math.abs(work) / (maxQ * RATIO_W)) * 100;
@@ -349,19 +327,15 @@
                 document.getElementById('barU').style.width = `${Math.min(100, widthU)}%`;
                 document.getElementById('barW').style.width = `${Math.min(100, widthW)}%`;
 
-                // Stats
                 document.getElementById('tempDisplay').innerText = Math.round(currentTemp);
                 
-                // Volume Calculation
                 const volume = 1.0 + ((BASE_PISTON_Y - pistonY) / 100);
                 const deltaV = volume - 1.0;
                 document.getElementById('volDisplay').innerText = volume.toFixed(2);
                 
-                // Bottom Calculation Box
                 document.getElementById('calcDeltaV').innerText = (deltaV > 0 ? "+" : "") + deltaV.toFixed(2) + " L";
                 document.getElementById('calcWork').innerText = Math.round(work) + " J";
 
-                // Status Badge
                 const badge = document.getElementById('workBadge');
                 if (work > 5) {
                     badge.innerText = "Expansion (+Work)";
@@ -376,7 +350,6 @@
             }
 
             function updateFlames() {
-                // Show flames based on heat intensity
                 const intensity = Math.floor(currentQ / 80); 
                 flames.forEach((f, i) => {
                     if (i < intensity) f.classList.add('active');
@@ -386,30 +359,26 @@
 
             // --- Rendering ---
             function draw() {
-                // Clear Canvas
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // 1. Draw Piston Head
-                ctx.fillStyle = '#475569'; // Slate 600
+                // Piston Head
+                ctx.fillStyle = '#475569'; 
                 ctx.fillRect(0, pistonY - 20, canvas.width, 20);
                 
-                // 2. Draw Piston Rod
-                ctx.fillStyle = '#94a3b8'; // Slate 400
-                // Rod width 20px, centered
+                // Piston Rod
+                ctx.fillStyle = '#94a3b8'; 
                 ctx.fillRect((canvas.width/2) - 10, -50, 20, pistonY - 20 + 50);
 
-                // 3. Draw Particles
+                // Particles
                 particles.forEach(p => p.draw());
             }
 
-            // --- Animation Loop ---
             function animate() {
                 updatePhysics();
                 draw();
                 requestAnimationFrame(animate);
             }
 
-            // Start
             init();
         });
     </script>
