@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermodynamics Simulation</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f1f5f9; }
+        
+        /* Canvas Styling */
+        canvas { 
+            background-color: #ffffff; 
+            border-bottom: 4px solid #334155; 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+            display: block; /* Removes bottom spacing issues */
+        }
+        
+        /* Flame Animation */
+        .flame-container { height: 40px; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; }
+        .flame {
+            width: 20px; height: 20px; background: linear-gradient(to top, #ef4444, #f59e0b, #fcd34d);
+            border-radius: 50% 50% 20% 20%; transform: rotate(45deg);
+            opacity: 0; transition: opacity 0.3s; margin: 0 4px;
+        }
+        .flame.active { animation: flicker 0.1s infinite alternate; opacity: 1; }
+        @keyframes flicker { 
+            0% { transform: scale(1.0) rotate(45deg); } 
+            100% { transform: scale(1.1) rotate(45deg) translateY(-2px); } 
+        }
+        
+        /* Custom Slider */
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 12px; border-radius: 6px; background: #cbd5e1; outline: none; }
+        input[type=range]::-webkit-slider-thumb { 
+            -webkit-appearance: none; appearance: none; 
+            width: 24px; height: 24px; border-radius: 50%; 
+            background: #ef4444; border: 2px solid white; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+            cursor: pointer; transition: transform 0.1s; 
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+        /* Smooth Bar Transitions */
+        .bar-fill { transition: width 0.2s ease-out; }
+    </style>
+</head>
+<body class="p-4 md:p-8 text-slate-800">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-6 flex flex-col md:flex-row justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-red-400 flex items-center gap-2">
+                    <i data-lucide="flame"></i> First Law of Thermodynamics
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Energy Conservation: Heat (Q) = Internal Energy (&Delta;U) + Work (W)</p>
+            </div>
+            <div class="mt-4 md:mt-0 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                <span class="text-xs text-slate-400 uppercase tracking-wider">Formula</span>
+                <div class="text-xl font-mono font-bold text-white tracking-wide">
+                    <span class="text-red-400">Q</span> = 
+                    <span class="text-blue-400">&Delta;U</span> + 
+                    <span class="text-green-400">W</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row">
+            
+            <!-- Left: Visual Simulation -->
+            <div class="w-full lg:w-5/12 p-6 bg-slate-50 border-r border-slate-200 flex flex-col items-center">
+                
+                <!-- Cylinder Visualization -->
+                <div class="relative mb-4">
+                    <!-- Piston Container -->
+                    <div class="border-x-4 border-t-4 border-slate-600 rounded-t-lg bg-white relative overflow-hidden" style="width: 260px; height: 350px;">
+                        <canvas id="simCanvas" width="252" height="350"></canvas>
+                    </div>
+                    
+                    <!-- Heat Source -->
+                    <div class="flame-container w-[260px] mt-1 bg-slate-200 rounded-b-lg border-x border-b border-slate-300">
+                        <div class="flame" id="f1"></div>
+                        <div class="flame" id="f2"></div>
+                        <div class="flame" id="f3"></div>
+                        <div class="flame" id="f4"></div>
+                        <div class="flame" id="f5"></div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="w-full max-w-xs bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <label class="flex justify-between text-sm font-bold text-slate-700 mb-3">
+                        <span>Cool System</span>
+                        <span class="text-red-500">Add Heat (Q)</span>
+                    </label>
+                    <!-- Default value set to 150 so it moves on load -->
+                    <input type="range" id="heatSlider" min="0" max="500" value="150" step="1">
+                    <p class="text-xs text-center text-slate-500 mt-2 italic">Drag slider to heat the gas</p>
+                </div>
+            </div>
+
+            <!-- Right: The Math & Physics Breakdown -->
+            <div class="w-full lg:w-7/12 p-6 space-y-6">
+                
+                <!-- The Main Equation Display -->
+                <div class="bg-slate-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+                    <h3 class="text-slate-400 text-xs uppercase font-bold tracking-widest mb-4">Real-time Energy Balance</h3>
+                    
+                    <div class="flex items-center justify-center gap-2 md:gap-4 text-2xl md:text-4xl font-mono font-bold">
+                        <div class="text-center">
+                            <div class="text-red-400" id="valQ">0 J</div>
+                            <div class="text-xs text-slate-500 mt-1">Heat Added</div>
+                        </div>
+                        <div class="text-slate-600">=</div>
+                        <div class="text-center">
+                            <div class="text-blue-400" id="valU">0 J</div>
+                            <div class="text-xs text-slate-500 mt-1">Int. Energy</div>
+                        </div>
+                        <div class="text-slate-600">+</div>
+                        <div class="text-center">
+                            <div class="text-green-400" id="valW">0 J</div>
+                            <div class="text-xs text-slate-500 mt-1">Work Done</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- The "Split" Visualization -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Internal Energy Card -->
+                    <div class="bg-blue-50 rounded-xl p-5 border border-blue-100">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="p-2 bg-blue-100 rounded-lg text-blue-600"><i data-lucide="thermometer"></i></div>
+                            <h3 class="font-bold text-blue-900">1. Internal Energy (&Delta;U)</h3>
+                        </div>
+                        <p class="text-sm text-blue-800 mb-3">
+                            Heat makes gas particles move faster. This raises the temperature.
+                        </p>
+                        
+                        <!-- Mini Bar Chart -->
+                        <div class="w-full bg-blue-200 rounded-full h-3 mb-2 overflow-hidden">
+                            <div id="barU" class="bg-blue-500 h-3 rounded-full bar-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold text-blue-700">
+                            <span>Temp: <span id="tempDisplay">300</span> K</span>
+                            <span id="uPercent">60% of Q</span>
+                        </div>
+                    </div>
+
+                    <!-- Work Done Card -->
+                    <div class="bg-green-50 rounded-xl p-5 border border-green-100">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="p-2 bg-green-100 rounded-lg text-green-600"><i data-lucide="move-vertical"></i></div>
+                            <h3 class="font-bold text-green-900">2. Work Done (W)</h3>
+                        </div>
+                        <p class="text-sm text-green-800 mb-3">
+                            The expanding gas pushes the piston up. Work = Force &times; Distance.
+                        </p>
+
+                        <!-- Mini Bar Chart -->
+                        <div class="w-full bg-green-200 rounded-full h-3 mb-2 overflow-hidden">
+                            <div id="barW" class="bg-green-500 h-3 rounded-full bar-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold text-green-700">
+                            <span>Vol: <span id="volDisplay">1.0</span> L</span>
+                            <span id="wPercent">40% of Q</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Calculation Detail -->
+                <div class="bg-white border border-slate-200 rounded-xl p-5">
+                    <h4 class="font-bold text-slate-700 mb-2 text-sm uppercase">Work Calculation Detail</h4>
+                    <div class="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div class="text-sm text-slate-600 mb-2 md:mb-0">
+                            Formula: W = P &times; &Delta;V
+                        </div>
+                        <div class="h-8 w-px bg-slate-300 hidden md:block"></div>
+                        <div class="text-sm font-mono">
+                            <span class="text-slate-500">P (1 atm)</span> &times; 
+                            <span class="text-slate-800 font-bold" id="calcDeltaV">0.0 L</span> = 
+                            <span class="text-green-600 font-bold" id="calcWork">0 J</span>
+                        </div>
+                        <div id="workBadge" class="mt-2 md:mt-0 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-500">
+                            Equilibrium
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for DOM to fully load before running script to prevent errors
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Initialize Icons if library is loaded
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            // --- Configuration ---
+            const canvas = document.getElementById('simCanvas');
+            const ctx = canvas.getContext('2d');
+            const slider = document.getElementById('heatSlider');
+            const flames = document.querySelectorAll('.flame');
+
+            // --- Physics Constants ---
+            const PARTICLE_COUNT = 60;
+            const BASE_TEMP = 300;     // Kelvin
+            const BASE_PISTON_Y = 280; // Pixels from top (start position)
+            const MAX_HEAT = 500;      // Max slider value
+            
+            // Energy Split: 60% Internal Energy, 40% Work
+            const RATIO_U = 0.6; 
+            const RATIO_W = 0.4;
+
+            // --- State Variables ---
+            let particles = [];
+            let currentQ = 0;       // Current Heat
+            let targetQ = 150;      // Target Heat (matches slider default)
+            let pistonY = BASE_PISTON_Y;
+            let currentTemp = BASE_TEMP;
+
+            // --- Particle Class ---
+            class Particle {
+                constructor() {
+                    this.reset();
+                }
+
+                reset() {
+                    this.radius = 4;
+                    this.x = Math.random() * canvas.width;
+                    // Initialize strictly below the piston to avoid sticking
+                    this.y = BASE_PISTON_Y + Math.random() * (canvas.height - BASE_PISTON_Y - 10) + 5;
+                    
+                    // Random velocity vector
+                    this.vx = (Math.random() - 0.5) * 3; // Increased base speed
+                    this.vy = (Math.random() - 0.5) * 3;
+                }
+
+                update(speedMultiplier, ceilingY) {
+                    // Update position
+                    this.x += this.vx * speedMultiplier;
+                    this.y += this.vy * speedMultiplier;
+
+                    // Wall Collisions (Left/Right)
+                    if (this.x <= this.radius) {
+                        this.x = this.radius;
+                        this.vx *= -1;
+                    } else if (this.x >= canvas.width - this.radius) {
+                        this.x = canvas.width - this.radius;
+                        this.vx *= -1;
+                    }
+                    
+                    // Floor Collision
+                    if (this.y >= canvas.height - this.radius) {
+                        this.y = canvas.height - this.radius;
+                        this.vy *= -1;
+                    }
+
+                    // Piston (Ceiling) Collision
+                    // If particle hits the piston face
+                    if (this.y <= ceilingY + this.radius) {
+                        this.y = ceilingY + this.radius;
+                        this.vy *= -1;
+                        // Add a tiny bit of random jitter to prevent getting stuck in a perfect loop
+                        this.vx += (Math.random() - 0.5) * 0.1;
+                    }
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    
+                    // Color Logic: Blue (300K) -> Red (800K)
+                    const tempOffset = currentTemp - 300;
+                    // Clamp values to 0-255
+                    const r = Math.min(255, Math.max(50, 50 + (tempOffset * 0.5)));
+                    const b = Math.max(50, 255 - (tempOffset * 0.5));
+                    
+                    ctx.fillStyle = `rgb(${r}, 50, ${b})`;
+                    ctx.fill();
+                }
+            }
+
+            // --- Initialization ---
+            function init() {
+                particles = [];
+                for(let i=0; i<PARTICLE_COUNT; i++) {
+                    particles.push(new Particle());
+                }
+                animate();
+            }
+
+            // --- Physics Engine ---
+            function updatePhysics() {
+                // Smoothly interpolate current values to slider target
+                targetQ = parseInt(slider.value);
+                
+                // Simple easing for smooth animation
+                const diff = targetQ - currentQ;
+                if (Math.abs(diff) > 0.5) {
+                    currentQ += diff * 0.1;
+                } else {
+                    currentQ = targetQ;
+                }
+
+                // Calculate Thermodynamics
+                const deltaU = currentQ * RATIO_U;
+                const work = currentQ * RATIO_W;
+
+                // 1. Temperature affects speed
+                currentTemp = BASE_TEMP + deltaU;
+                // Speed multiplier: v ~ sqrt(T). 
+                // We use a simplified linear factor for better visual effect in this small canvas
+                const speedMultiplier = 1 + (deltaU / 300); 
+
+                // 2. Work affects Volume (Piston Height)
+                // Map Work (0-200J) to Piston Movement (0-200px approx)
+                const pistonMovePixels = work * 0.9; 
+                pistonY = BASE_PISTON_Y - pistonMovePixels;
+
+                // 3. Update Particles
+                particles.forEach(p => p.update(speedMultiplier, pistonY));
+
+                // 4. Update UI Elements
+                updateUI(deltaU, work);
+                updateFlames();
+            }
+
+            // --- UI Updates ---
+            function updateUI(deltaU, work) {
+                // Text Values
+                document.getElementById('valQ').innerText = Math.round(currentQ) + " J";
+                document.getElementById('valU').innerText = Math.round(deltaU) + " J";
+                document.getElementById('valW').innerText = Math.round(work) + " J";
+
+                // Bar Charts
+                const maxQ = MAX_HEAT;
+                const widthU = (Math.abs(deltaU) / (maxQ * RATIO_U)) * 100; 
+                const widthW = (Math.abs(work) / (maxQ * RATIO_W)) * 100;
+                
+                document.getElementById('barU').style.width = `${Math.min(100, widthU)}%`;
+                document.getElementById('barW').style.width = `${Math.min(100, widthW)}%`;
+
+                // Stats
+                document.getElementById('tempDisplay').innerText = Math.round(currentTemp);
+                
+                // Volume Calculation
+                const volume = 1.0 + ((BASE_PISTON_Y - pistonY) / 100);
+                const deltaV = volume - 1.0;
+                document.getElementById('volDisplay').innerText = volume.toFixed(2);
+                
+                // Bottom Calculation Box
+                document.getElementById('calcDeltaV').innerText = (deltaV > 0 ? "+" : "") + deltaV.toFixed(2) + " L";
+                document.getElementById('calcWork').innerText = Math.round(work) + " J";
+
+                // Status Badge
+                const badge = document.getElementById('workBadge');
+                if (work > 5) {
+                    badge.innerText = "Expansion (+Work)";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200";
+                } else if (work < -5) {
+                    badge.innerText = "Compression (-Work)";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200";
+                } else {
+                    badge.innerText = "Equilibrium";
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200";
+                }
+            }
+
+            function updateFlames() {
+                // Show flames based on heat intensity
+                const intensity = Math.floor(currentQ / 80); 
+                flames.forEach((f, i) => {
+                    if (i < intensity) f.classList.add('active');
+                    else f.classList.remove('active');
+                });
+            }
+
+            // --- Rendering ---
+            function draw() {
+                // Clear Canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 1. Draw Piston Head
+                ctx.fillStyle = '#475569'; // Slate 600
+                ctx.fillRect(0, pistonY - 20, canvas.width, 20);
+                
+                // 2. Draw Piston Rod
+                ctx.fillStyle = '#94a3b8'; // Slate 400
+                // Rod width 20px, centered
+                ctx.fillRect((canvas.width/2) - 10, -50, 20, pistonY - 20 + 50);
+
+                // 3. Draw Particles
+                particles.forEach(p => p.draw());
+            }
+
+            // --- Animation Loop ---
+            function animate() {
+                updatePhysics();
+                draw();
+                requestAnimationFrame(animate);
+            }
+
+            // Start
+            init();
+        });
+    </script>
+</body>
+</html>
